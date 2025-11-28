@@ -17,3 +17,5 @@ if abs(pred - 8.0) < 0.1:
 else:
     print("FAIL")
     sys.exit(1)
+
+#Test Auto 1

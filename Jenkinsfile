@@ -19,10 +19,10 @@ pipeline {
     }
     post {
         success { 
-            echo '✓ CI/CD SUCCESS - Model Deployed' 
+            echo ' CI/CD SUCCESS - Model Deployed' 
         }
         failure { 
-            echo '✗ CI/CD FAILED' 
+            echo ' CI/CD FAILED' 
         }
     }
 }

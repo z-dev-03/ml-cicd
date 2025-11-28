@@ -1,40 +1,32 @@
 import os, shutil, pickle, sys, numpy as np
+print("=== DEPLOY START ===")
 
-print("=== Deployment Started ===")
+# Create ALL folders
+folders = ["deploy/blue", "deploy/green", "deploy/prod"]
+for f in folders: os.makedirs(f, exist_ok=True)
 
-# Create folders
-os.makedirs("deploy/blue", exist_ok=True)
-os.makedirs("deploy/green", exist_ok=True)
-os.makedirs("deploy/prod", exist_ok=True)
-
-# Check current production environment
+# Blue-Green LOGIC (super clear)
 env_file = "deploy/prod/env.txt"
-if os.path.exists(env_file):
-    current = open(env_file).read().strip()
-else:
-    current = "green"
+current_env = "blue" if not os.path.exists(env_file) else open(env_file).read().strip()
+new_env = "green" if current_env == "blue" else "blue"
 
-# Toggle environment
-target = "blue" if current == "green" else "green"
-target_folder = f"deploy/{target}"
+print(f"SWITCH: {current_env} → {new_env}")
 
-print(f"Deploying to {target}")
+# STEP 1: Deploy to new environment
+shutil.copy("model.pkl", f"deploy/{new_env}/model.pkl")
+print(f"✓ Deployed {new_env}")
 
-# Copy model to target environment
-shutil.copy("model.pkl", f"{target_folder}/model.pkl")
+# STEP 2: Test it works
+model = pickle.load(open(f"deploy/{new_env}/model.pkl", "rb"))
+test_result = model.predict(np.array([[4]]))[0]
+print(f"✓ Test result: {test_result}")
 
-# Test model (health check)
-model = pickle.load(open(f"{target_folder}/model.pkl", "rb"))
-pred = model.predict(np.array([[4]]))[0]
-print(f"Health check: {pred:.1f}")
-
-if abs(pred - 8.0) > 0.1:
-    print("Health check FAILED")
+if abs(test_result - 8.0) > 0.1:
+    print("✗ TEST FAILED")
     sys.exit(1)
 
-# Switch production to new environment
-shutil.copy(f"{target_folder}/model.pkl", "deploy/prod/model.pkl")
-open(env_file, "w").write(target)
-
-print(f"Production switched to {target}")
-print("=== Deployment Complete ===")
+# STEP 3: Switch production
+shutil.copy(f"deploy/{new_env}/model.pkl", "deploy/prod/model.pkl")
+open(env_file, "w").write(new_env)
+print(f"✅ PRODUCTION NOW: {new_env}")
+print("=== DEPLOY DONE ===")

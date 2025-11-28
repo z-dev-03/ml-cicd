@@ -1,21 +1,32 @@
-import os,shutil,pickle,sys,numpy as np
+import os, shutil, pickle, sys, numpy as np
+print("=== DEPLOY START ===")
 
-print("DEPLOY")
+# Create ALL folders
+folders = ["deploy/blue", "deploy/green", "deploy/prod"]
+for f in folders: os.makedirs(f, exist_ok=True)
 
-os.makedirs("deploy/blue",exist_ok=True)
-os.makedirs("deploy/green",exist_ok=True)
-os.makedirs("deploy/prod",exist_ok=True)
+# Blue-Green LOGIC
+env_file = "deploy/prod/env.txt"
+current_env = "blue" if not os.path.exists(env_file) else open(env_file).read().strip()
+new_env = "green" if current_env == "blue" else "blue"
 
-f="deploy/prod/env.txt"
-c="blue"if not os.path.exists(f)else open(f).read().strip()
-n="green"if c=="blue"else"blue"
+print(f"SWITCH: {current_env} to {new_env}")
 
-print(f"{c}→{n}")
-shutil.copy("model.pkl",f"deploy/{n}/model.pkl")
+# STEP 1: Deploy to new environment
+shutil.copy("model.pkl", f"deploy/{new_env}/model.pkl")
+print(f"Deployed {new_env}")
 
-m=pickle.load(open(f"deploy/{n}/model.pkl","rb"))
-if abs(m.predict([[4]])[0]-8)>0.1:sys.exit(1)
+# STEP 2: Test it works
+model = pickle.load(open(f"deploy/{new_env}/model.pkl", "rb"))
+test_result = model.predict(np.array([[4]]))[0]
+print(f"Test result: {test_result}")
 
-shutil.copy(f"deploy/{n}/model.pkl","deploy/prod/model.pkl")
-open(f,"w").write(n)
-print(f"LIVE:{n}")
+if abs(test_result - 8.0) > 0.1:
+    print("TEST FAILED")
+    sys.exit(1)
+
+# STEP 3: Switch production
+shutil.copy(f"deploy/{new_env}/model.pkl", "deploy/prod/model.pkl")
+open(env_file, "w").write(new_env)
+print(f"PRODUCTION NOW: {new_env}")
+print("=== DEPLOY DONE ===")
